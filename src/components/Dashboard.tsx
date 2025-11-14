@@ -36,15 +36,6 @@ export const Dashboard = () => {
         params.append('date', date);
       }
 
-      const { data, error } = await supabase.functions.invoke('get-stats', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (error) throw error;
-
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-stats?${params.toString()}`,
         {
@@ -55,7 +46,8 @@ export const Dashboard = () => {
       );
 
       if (!response.ok) {
-        throw new Error('Failed to fetch stats');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch stats');
       }
 
       const statsData = await response.json();
@@ -63,7 +55,7 @@ export const Dashboard = () => {
       toast.success("Stats loaded successfully");
     } catch (error) {
       console.error('Error fetching stats:', error);
-      toast.error("Failed to fetch stats");
+      toast.error(error instanceof Error ? error.message : "Failed to fetch stats");
     } finally {
       setLoading(false);
     }
