@@ -3,8 +3,11 @@ import { Dashboard } from "@/components/Dashboard";
 import { EventTester } from "@/components/EventTester";
 import { ApiDocs } from "@/components/ApiDocs";
 import { QueueStatus } from "@/components/QueueStatus";
+import { OfflineIndicator } from "@/components/OfflineIndicator";
+import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
+import { ServiceWorkerUpdater } from "@/components/ServiceWorkerUpdater";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Activity, Menu, X } from "lucide-react";
+import { Activity, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
@@ -104,6 +107,11 @@ const Index = () => {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* PWA Features */}
+      <ServiceWorkerUpdater />
+      <OfflineIndicator />
+      <PWAInstallPrompt />
     </div>
   );
 };
