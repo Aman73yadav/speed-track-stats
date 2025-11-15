@@ -4,8 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
-import { Eye, Users, TrendingUp, RefreshCw, BarChart3 } from "lucide-react";
+import { Eye, Users, TrendingUp, RefreshCw, BarChart3, Download, FileJson, FileText } from "lucide-react";
 import { toast } from "sonner";
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 
 interface PathStat {
   path: string;
@@ -21,12 +23,19 @@ interface Stats {
   days_tracked?: number;
 }
 
+interface DailyTrend {
+  date: string;
+  views: number;
+  users: number;
+}
+
 export const Dashboard = () => {
   const [siteId, setSiteId] = useState("site-abc-123");
   const [date, setDate] = useState("");
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(false);
   const [queueCount, setQueueCount] = useState(0);
+  const [trendData, setTrendData] = useState<DailyTrend[]>([]);
 
   const fetchStats = async () => {
     setLoading(true);
@@ -52,6 +61,10 @@ export const Dashboard = () => {
 
       const statsData = await response.json();
       setStats(statsData);
+      
+      // Fetch trend data
+      await fetchTrendData();
+      
       toast.success("Stats loaded successfully");
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -72,6 +85,29 @@ export const Dashboard = () => {
       setQueueCount(count || 0);
     } catch (error) {
       console.error('Error fetching queue count:', error);
+    }
+  };
+
+  const fetchTrendData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('daily_stats')
+        .select('date, total_views, unique_users')
+        .eq('site_id', siteId)
+        .order('date', { ascending: true })
+        .limit(30);
+
+      if (error) throw error;
+      
+      const trends: DailyTrend[] = (data || []).map(d => ({
+        date: d.date,
+        views: d.total_views || 0,
+        users: d.unique_users || 0,
+      }));
+      
+      setTrendData(trends);
+    } catch (error) {
+      console.error('Error fetching trend data:', error);
     }
   };
 
@@ -106,17 +142,58 @@ export const Dashboard = () => {
     }
   };
 
+  const exportAsJSON = () => {
+    const exportData = {
+      stats,
+      trendData,
+      exportedAt: new Date().toISOString(),
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `analytics-${siteId}-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success("Exported as JSON");
+  };
+
+  const exportAsCSV = () => {
+    if (!trendData.length) {
+      toast.error("No data to export");
+      return;
+    }
+    
+    const headers = ['Date', 'Total Views', 'Unique Users'];
+    const rows = trendData.map(d => [d.date, d.views, d.users]);
+    const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `analytics-${siteId}-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success("Exported as CSV");
+  };
+
   useEffect(() => {
     fetchStats();
     fetchQueueCount();
     
-    // Refresh every 10 seconds
+    // Refresh every 30 seconds
     const interval = setInterval(() => {
       fetchQueueCount();
-    }, 10000);
+      fetchTrendData();
+    }, 30000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [siteId]);
 
   return (
     <div className="space-y-6">
@@ -165,8 +242,119 @@ export const Dashboard = () => {
               </Button>
             )}
           </div>
+          <div className="flex gap-2 flex-wrap">
+            <Button 
+              onClick={exportAsJSON} 
+              variant="outline"
+              disabled={!stats}
+              className="gap-2"
+            >
+              <FileJson className="h-4 w-4" />
+              Export JSON
+            </Button>
+            <Button 
+              onClick={exportAsCSV} 
+              variant="outline"
+              disabled={!trendData.length}
+              className="gap-2"
+            >
+              <FileText className="h-4 w-4" />
+              Export CSV
+            </Button>
+          </div>
         </CardContent>
       </Card>
+
+      {/* Charts Section */}
+      {trendData.length > 0 && (
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card className="bg-card/50 backdrop-blur-sm border-border">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-primary" />
+                Views Trend
+              </CardTitle>
+              <CardDescription>Daily pageviews over time</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ChartContainer
+                config={{
+                  views: {
+                    label: "Views",
+                    color: "hsl(var(--chart-1))",
+                  },
+                }}
+                className="h-[300px]"
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={trendData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis 
+                      dataKey="date" 
+                      stroke="hsl(var(--muted-foreground))"
+                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                    />
+                    <YAxis 
+                      stroke="hsl(var(--muted-foreground))"
+                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                    />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Line 
+                      type="monotone" 
+                      dataKey="views" 
+                      stroke="hsl(var(--chart-1))" 
+                      strokeWidth={2}
+                      dot={{ fill: 'hsl(var(--chart-1))' }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-card/50 backdrop-blur-sm border-border">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-accent" />
+                User Engagement
+              </CardTitle>
+              <CardDescription>Unique users per day</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ChartContainer
+                config={{
+                  users: {
+                    label: "Users",
+                    color: "hsl(var(--chart-2))",
+                  },
+                }}
+                className="h-[300px]"
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={trendData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis 
+                      dataKey="date" 
+                      stroke="hsl(var(--muted-foreground))"
+                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                    />
+                    <YAxis 
+                      stroke="hsl(var(--muted-foreground))"
+                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                    />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar 
+                      dataKey="users" 
+                      fill="hsl(var(--chart-2))" 
+                      radius={[8, 8, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {stats && (
         <>
