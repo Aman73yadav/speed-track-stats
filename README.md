@@ -1,6 +1,6 @@
 # Analytics Engine - High-Performance Event Tracking System
 
-A blazing-fast analytics backend service built with Lovable Cloud (Supabase) that captures website analytics events, processes them asynchronously, and provides aggregated reporting.
+A blazing-fast analytics backend service built with Supabase that captures website analytics events, processes them asynchronously, and provides aggregated reporting.
 
 ## 🎯 Project Overview
 
@@ -38,7 +38,7 @@ The key architectural decision is using **Edge Functions with background tasks**
 ### Technology Stack
 
 - **Runtime**: Deno Edge Functions (serverless, auto-scaling)
-- **Database**: PostgreSQL (via Lovable Cloud/Supabase)
+- **Database**: PostgreSQL (Supabase)
 - **Queue**: PostgreSQL table with `processed` flag
 - **Frontend**: React + TypeScript + Tailwind CSS
 
