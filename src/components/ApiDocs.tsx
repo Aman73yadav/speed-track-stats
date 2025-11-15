@@ -4,8 +4,8 @@ import { Separator } from "@/components/ui/separator";
 import { Code, Database, Zap, BarChart3 } from "lucide-react";
 
 export const ApiDocs = () => {
-  const apiUrl = import.meta.env.VITE_SUPABASE_URL;
-  const apiKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  const apiUrl = import.meta.env.VITE_SUPABASE_URL || 'YOUR_SUPABASE_URL';
+  const apiKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'YOUR_ANON_KEY';
 
   return (
     <div className="space-y-6">
